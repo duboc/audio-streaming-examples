@@ -1,0 +1,6 @@
+google-generativeai>=0.3.0
+google-cloud-aiplatform>=1.38.0
+yt-dlp>=2023.10.13
+moviepy>=1.0.3
+pydub>=0.25.1
+tenacity>=8.2.3
