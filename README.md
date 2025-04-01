@@ -1,265 +1,168 @@
-# Gemini Audio Transcription & Caption Generator
+# Advanced Audio Transcription and Captioning System
 
-This application transcribes audio from YouTube videos or local media files using Gemini's multimodal capabilities. It extracts audio, processes it in chunks, and creates properly formatted caption files with timestamps.
+A powerful system for creating high-quality captions for videos, TV shows, videocasts, and webnovels using Google's Gemini AI models. This system identifies not only spoken content but also music, sound effects, and meaningful silence to provide a complete audio experience for viewers.
 
-All outputs, including audio chunks, transcription data, and caption files, are saved to the `output` folder.
+## Overview
 
-## Features
+This system uses Google's Gemini multimodal AI models to:
 
-- Process YouTube videos by URL
-- Process local video files
-- Generate captions in SRT or VTT format
-- Automatically chunk audio for processing with Gemini
-- Supports timing information for accurate caption synchronization
-
-## Requirements
-
-- Python 3.8+
-- Google Cloud Project with Gemini API enabled
-- Google API credentials configured
-
-## Installation
-
-1. Clone this repository or download the files
-2. Install the required dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Set up Google Cloud credentials:
-
-```bash
-# Export your Google Cloud credentials
-export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/credentials.json"
-
-# Optionally set your Google Cloud Project ID
-export GCP_PROJECT="your-project-id"
-```
-
-## Usage
-
-### Option 1: All-in-One Processing Script (Recommended)
-
-The easiest way to use this application is with the all-in-one processing script:
-
-```bash
-# First, make the script executable
-chmod +x process_video.sh
-
-# Then run it with a YouTube URL or local video file
-./process_video.sh [options] <YouTube URL or video file path>
-```
-
-Options:
-- `-f, --format`: Caption format: srt or vtt (default: srt)
-- `-c, --chunk`: Audio chunk size in seconds (default: 30)
-- `-p, --project`: Google Cloud Project ID (optional)
-- `-h, --help`: Show help message
-
-This script:
-1. Creates a dedicated subfolder for each video
-2. Generates captions using Gemini
-3. Embeds the captions into the video as soft subtitles
-4. Organizes all output files in the subfolder
-
-Examples:
-```bash
-# Process a YouTube video with default settings
-./process_video.sh https://www.youtube.com/watch?v=dQw4w9WgXcQ
-
-# Process a YouTube video with VTT format and smaller chunks
-./process_video.sh -f vtt -c 15 https://www.youtube.com/watch?v=dQw4w9WgXcQ
-
-# Process a local video file
-./process_video.sh /path/to/video.mp4
-```
-
-### Option 2: Step-by-Step Processing
-
-If you prefer more control, you can run the individual scripts manually:
-
-#### Step 1: Generate Captions
-
-```bash
-python transcribe_audio.py [input] [options]
-```
-
-Options:
-- `input`: YouTube URL or path to a local video/audio file
-- `-o, --output`: Output file path (default: output/transcription.srt)
-- `-f, --format`: Output format: "srt" or "vtt" (default: srt)
-- `-p, --project`: Google Cloud Project ID (optional if set in environment)
-- `-c, --chunk-size`: Size of audio chunks in seconds (default: 30)
-
-#### Step 2: Save Video with Embedded Captions
-
-```bash
-python save_video_with_captions.py [input] [options]
-```
-
-Options:
-- `input`: YouTube URL or path to local video file
-- `-c, --captions`: Path to caption file (default: auto-detected in output folder)
-- `-o, --output`: Output video file path (default: auto-generated in output directory)
-
-This will create a video file with embedded soft subtitles that can be toggled on/off in most video players.
-
-### Examples
-
-#### Generating Captions
-
-Transcribe a YouTube video:
-
-```bash
-python transcribe_audio.py https://www.youtube.com/watch?v=dQw4w9WgXcQ
-```
-
-Transcribe a local audio or video file in VTT format:
-
-```bash
-python transcribe_audio.py /path/to/audio.mp3 -f vtt
-```
-
-Specify a custom output path:
-
-```bash
-python transcribe_audio.py /path/to/video.mp4 -o output/my_transcription.srt
-```
-
-Adjust chunk size for better handling of long files:
-
-```bash
-python transcribe_audio.py /path/to/long_video.mp4 -c 15
-```
-
-#### Embedding Captions in Videos
-
-Save a YouTube video with auto-detected captions:
-
-```bash
-python save_video_with_captions.py https://www.youtube.com/watch?v=dQw4w9WgXcQ
-```
-
-Save a local video with specified caption file:
-
-```bash
-python save_video_with_captions.py /path/to/video.mp4 -c output/my_captions.srt
-```
-
-Specify custom output path for the captioned video:
-
-```bash
-python save_video_with_captions.py /path/to/video.mp4 -o output/final_video.mp4
-```
-
-### Advanced: Using the CaptionGenerator Class
-
-### Programmatic Usage
-
-You can also use the `CaptionGenerator` class in your own Python code:
-
-```python
-from caption_generator import CaptionGenerator
-import os
-
-# Initialize the generator
-generator = CaptionGenerator(project_id="your-google-cloud-project-id")
-
-# Process a YouTube video (output saved to output/youtube_[video_id].srt)
-generator.process_input(
-    input_source="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    output_format="srt"
-)
-
-# Process a local video file with a custom output path
-output_path = os.path.join("output", "custom_name.vtt")
-generator.process_input(
-    input_source="/path/to/video.mp4",
-    output_path=output_path,
-    output_format="vtt"
-)
-```
+1. Automatically transcribe speech from videos
+2. Identify and label non-speech audio elements (music, sounds, silence)
+3. Generate properly formatted captions with accurate timing
+4. Detect and fill gaps in audio segments
+5. Optimize caption timing for the best viewer experience
+6. Embed captions as soft subtitles in videos
 
 ## How It Works
 
-1. The application first processes the input source:
-   - For YouTube URLs: Downloads the video using yt-dlp
-   - For local files: Processes the file directly
+The system processes videos through several stages:
 
-2. Audio is extracted from the video using moviepy
-
-3. The audio is split into manageable chunks (default: 30 seconds)
-
-4. For each chunk:
-   - Audio is exported to MP3 format and saved to the output folder
-   - The chunk is processed to create timed caption segments
-   - Each segment includes appropriate timestamps based on its position in the video
-   - Raw responses are saved to the output directory for reference
-
-5. Caption segments are converted to the specified caption format (SRT or VTT)
-
-6. The formatted captions are written to the output file in the 'output' directory
-
-## How the Transcription Works
-
-1. The application first processes the input source:
-   - For YouTube URLs: Downloads the video using yt-dlp
-   - For local files: Processes the video or audio file directly
-
-2. Audio is extracted (for video files) or processed directly (for audio files)
-
-3. The audio is split into manageable chunks (default: 30 seconds)
-
-4. For each chunk:
-   - Audio is exported to MP3 format and saved to the output folder
-   - The audio is sent to Gemini using its multimodal capabilities via inline Blob data
-   - Gemini transcribes the audio content and returns text with timestamp information
-   - Raw responses are saved to the output directory for reference
-
-5. Transcription segments are converted to the specified caption format (SRT or VTT)
-
-6. The formatted captions are written to the output file in the 'output' directory
-
-## Multimodal Processing
-
-The application uses Gemini's multimodal capabilities to process audio data directly:
-
-```python
-# Audio is sent to Gemini using the inline_data Blob structure
-contents = [
-    types.Content(
-        role="user",
-        parts=[
-            types.Part(
-                inline_data=types.Blob(
-                    mime_type="audio/mp3",
-                    data=audio_bytes
-                )
-            ),
-            types.Part(text=prompt)
-        ]
-    )
-]
+```mermaid
+flowchart TD
+    A[Input Video/YouTube URL] --> B[Extract Audio]
+    B --> C[Split into Chunks]
+    C --> D[Process Each Chunk with Gemini]
+    D --> E[Detect & Fill Gaps]
+    E --> F[Final Timing Optimization]
+    F --> G[Format as SRT/VTT]
+    G --> H[Embed Captions in Video]
 ```
 
-## Output Directory Contents
+### Caption Type Handling
 
-After processing, the output folder will contain:
-- The main transcription file (.srt or .vtt)
-- Audio chunk files (.mp3) for each segment of the processed media
-- Response data (.json) from Gemini for each audio chunk
-- Error logs (.txt) if any issues occurred during processing
-- Downloaded video files (if using YouTube URLs)
-- Video files with embedded captions
+The system identifies and formats different types of audio content:
 
-## Limitations
+```mermaid
+flowchart LR
+    A[Audio Analysis] --> B{Content Type}
+    B -->|Speech| C[Standard Caption]
+    B -->|Music| D["♪ Music Description ♪"]
+    B -->|Sound Effect| E["Sound: Description"]
+    B -->|Silence| F["Meaningful Silence"]
+```
 
-- Gemini's audio processing capabilities have limitations with certain accents or background noise
-- Audio quality significantly affects transcription accuracy
-- Longer audio files are processed in chunks, which may affect continuity at chunk boundaries
-- API usage costs apply according to your Google Cloud pricing
+### Gap Analysis Process
+
+To ensure no important audio cues are missed:
+
+```mermaid
+flowchart TD
+    A[Start] --> B[Sort Segments by Time]
+    B --> C[Identify Gaps > 1s]
+    C --> D{For Each Gap}
+    D --> E[Export Gap Audio]
+    E --> F[Send to Gemini for Analysis]
+    F --> G[Classify as Music/Sound/Silence]
+    G --> H[Create Gap Segment]
+    H --> I[Insert into Timeline]
+    D --> J[End]
+```
+
+### Timing Optimization
+
+The final stage ensures optimal caption timing:
+
+```mermaid
+flowchart TD
+    A[All Caption Segments] --> B[Sort by Start Time]
+    B --> C[Send to Gemini for Timing Analysis]
+    C --> D[Apply Natural Speech Patterns]
+    D --> E[Adjust Duration for Non-Speech Elements]
+    E --> F[Ensure Readability Gaps]
+    F --> G[Combine Related Short Segments]
+    G --> H[Final Optimized Captions]
+```
+
+## Installation
+
+### Prerequisites
+
+- Python 3.7 or higher
+- Google Cloud project with Vertex AI API enabled
+- ffmpeg (for audio extraction and subtitle embedding)
+
+### Setup
+
+1. Clone the repository
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+3. Set up Google Cloud credentials
+   ```
+   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/credentials.json
+   ```
+
+## Usage
+
+Basic usage:
+
+```bash
+python process_video_with_captions.py "https://www.youtube.com/watch?v=VIDEO_ID"
+```
+
+### Options
+
+```
+-o OUTPUT_DIR   Custom output directory
+-f {srt,vtt}    Caption format (default: srt)
+-p PROJECT      Google Cloud Project ID
+-c CHUNK_SIZE   Size of audio chunks in seconds (default: 30)
+--skip-captions Skip caption generation (use existing caption file)
+--skip-embedding Skip embedding captions (just generate caption file)
+```
+
+## Key Features
+
+### Enhanced Audio Element Detection
+
+- **Speech Recognition**: Accurately transcribes spoken content
+- **Music Detection**: Identifies background music, theme songs, and musical cues
+- **Sound Effect Detection**: Labels important sound effects that contribute to the content
+- **Silence Recognition**: Identifies meaningful silence for dramatic effect
+
+### Advanced Processing
+
+- **Gap Detection**: Analyzes periods between speech segments for important audio cues
+- **Timing Optimization**: Adjusts caption timing for optimal viewer experience
+- **Format Support**: Generates captions in SRT and WebVTT formats
+- **Soft Subtitle Embedding**: Embeds captions that can be toggled on/off
+
+### WebVTT Enhanced Styling
+
+The system utilizes WebVTT's styling capabilities:
+- Italics for music (`<i>[♪ Upbeat jazz music ♪]</i>`)
+- Bold for sound effects (`<b>[Sound: door slamming]</b>`)
+- Standard formatting for silence labels
+
+## Roadmap
+
+### Short-term (1-3 months)
+
+- [ ] Scene change detection for better caption timing
+- [ ] Enhanced music genre identification
+- [ ] Improved handling of overlapping speech and sound effects
+- [ ] Support for additional output formats (ASS, TTML)
+
+### Medium-term (3-6 months)
+
+- [ ] Speaker identification and labeling
+- [ ] Multi-language support and translation
+- [ ] Customizable styling themes for different content types
+- [ ] Batch processing for multiple videos
+
+### Long-term (6+ months)
+
+- [ ] Real-time processing for live streams
+- [ ] Integration with popular video editing platforms
+- [ ] Sentiment analysis for enhanced caption styling
+- [ ] Accessibility optimizations (reading speed adjustment, simplified language options)
+- [ ] Visual context awareness for better caption placement
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the Apache License 2.0, following the same license as the Vertex Libs.
+This project is licensed under the MIT License - see the LICENSE file for details.
