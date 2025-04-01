@@ -90,9 +90,13 @@ Detailed technical documentation is available in the docs folder:
    ```
    pip install -r requirements.txt
    ```
-3. Set up Google Cloud credentials
+3. Set up Google Cloud Application Default Credentials (ADC) and export your project ID
    ```
-   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/credentials.json
+   # Configure Application Default Credentials
+   gcloud auth application-default login
+
+   # Export your Google Cloud project ID
+   export GCP_PROJECT=your-project-id
    ```
 
 ## Usage
@@ -138,6 +142,7 @@ Then open your browser and navigate to: `http://localhost:5000`
 - **Real-time Status Updates**: Monitor processing status in real-time
 - **Integrated Video Player**: Watch processed videos with captions directly in your browser
 - **Caption Format Selection**: Choose between SRT and WebVTT caption formats
+- **Token Usage Statistics**: Monitor AI resource consumption with detailed token usage metrics
 
 ## Key Features
 
@@ -154,6 +159,7 @@ Then open your browser and navigate to: `http://localhost:5000`
 - **Timing Optimization**: Adjusts caption timing for optimal viewer experience
 - **Format Support**: Generates captions in SRT and WebVTT formats
 - **Soft Subtitle Embedding**: Embeds captions that can be toggled on/off
+- **Token Usage Tracking**: Records and displays AI usage metrics for optimization
 
 ## Contributing
 
