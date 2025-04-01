@@ -67,6 +67,14 @@ class VideoProcessor:
         self.base_output_dir = "output"
         self.output_dir = None  # Will be set during processing
         
+        # Token usage tracking
+        self.token_usage = {
+            'transcription': {'prompt': 0, 'completion': 0, 'total': 0, 'chunks': 0},
+            'gap_analysis': {'prompt': 0, 'completion': 0, 'total': 0, 'gaps': 0},
+            'timing_optimization': {'prompt': 0, 'completion': 0, 'total': 0},
+            'total': {'prompt': 0, 'completion': 0, 'total': 0}
+        }
+        
         # Check if ffmpeg is installed
         if not which("ffmpeg"):
             raise RuntimeError("ffmpeg is not installed. Please install ffmpeg to use this script.")
@@ -183,8 +191,51 @@ class VideoProcessor:
         else:
             print("Skipping caption embedding...")
         
+        # Save token usage data to a JSON file
+        if not skip_captions:
+            token_usage_path = os.path.join(self.output_dir, "token_usage.json")
+            with open(token_usage_path, 'w') as f:
+                json.dump(self.token_usage, f, indent=2)
+            result_files['token_usage_file'] = token_usage_path
+            
+            # Include token usage data in the results
+            result_files['token_usage'] = self.get_token_usage_summary()
+        
         print(f"\nAll output files saved to: {self.output_dir}/")
         return result_files
+        
+    def get_token_usage_summary(self) -> Dict[str, any]:
+        """
+        Get a summary of token usage statistics.
+        
+        Returns:
+            Dictionary with token usage statistics
+        """
+        summary = self.token_usage.copy()
+        
+        # Add averages
+        if summary['transcription']['chunks'] > 0:
+            summary['transcription']['avg_per_chunk'] = {
+                'prompt': summary['transcription']['prompt'] / summary['transcription']['chunks'],
+                'completion': summary['transcription']['completion'] / summary['transcription']['chunks'],
+                'total': summary['transcription']['total'] / summary['transcription']['chunks']
+            }
+            
+        if summary['gap_analysis']['gaps'] > 0:
+            summary['gap_analysis']['avg_per_gap'] = {
+                'prompt': summary['gap_analysis']['prompt'] / summary['gap_analysis']['gaps'],
+                'completion': summary['gap_analysis']['completion'] / summary['gap_analysis']['gaps'],
+                'total': summary['gap_analysis']['total'] / summary['gap_analysis']['gaps']
+            }
+            
+        # Add total API calls
+        summary['total_api_calls'] = (
+            summary['transcription']['chunks'] + 
+            summary['gap_analysis']['gaps'] + 
+            1  # timing optimization
+        )
+        
+        return summary
 
     def _extract_youtube_id(self, url: str) -> str:
         """Extract the YouTube video ID from a URL."""
@@ -396,12 +447,24 @@ class VideoProcessor:
                     )
                 ]
                 
-                # Process with Gemini
+                # Process with Gemini and track tokens
                 print(f"Analyzing audio gap at {start_time:.2f}s - {end_time:.2f}s...")
-                response = self.client.generate_content(
+                response, token_count = self.client.generate_content(
                     contents=contents,
-                    model="gemini-2.0-flash-001"
+                    model="gemini-2.0-flash-001",
+                    count_tokens=True
                 )
+                
+                # Update token usage statistics
+                self.token_usage['gap_analysis']['prompt'] += token_count.prompt_tokens
+                self.token_usage['gap_analysis']['completion'] += token_count.completion_tokens
+                self.token_usage['gap_analysis']['total'] += token_count.total_tokens
+                self.token_usage['gap_analysis']['gaps'] += 1
+                
+                # Update total token usage
+                self.token_usage['total']['prompt'] += token_count.prompt_tokens
+                self.token_usage['total']['completion'] += token_count.completion_tokens
+                self.token_usage['total']['total'] += token_count.total_tokens
                 
                 # Parse response
                 response_text = response if isinstance(response, str) else response.text if hasattr(response, 'text') else str(response)
@@ -485,11 +548,22 @@ class VideoProcessor:
                 )
             ]
             
-            response = self.client.generate_content(
+            response, token_count = self.client.generate_content(
                 contents=contents,
                 model="gemini-2.0-flash-001",
-                return_json=True
+                return_json=True,
+                count_tokens=True
             )
+            
+            # Update token usage statistics
+            self.token_usage['timing_optimization']['prompt'] = token_count.prompt_tokens
+            self.token_usage['timing_optimization']['completion'] = token_count.completion_tokens
+            self.token_usage['timing_optimization']['total'] = token_count.total_tokens
+            
+            # Update total token usage
+            self.token_usage['total']['prompt'] += token_count.prompt_tokens
+            self.token_usage['total']['completion'] += token_count.completion_tokens
+            self.token_usage['total']['total'] += token_count.total_tokens
             
             # Parse the response
             if isinstance(response, str):
@@ -636,11 +710,23 @@ class VideoProcessor:
             
             print(f"Processing audio chunk at {start_time:.2f}s with Gemini multimodal...")
             
-            # Process with Gemini using the model that supports multimodal input
-            response = self.client.generate_content(
+            # Process with Gemini using the model that supports multimodal input and track tokens
+            response, token_count = self.client.generate_content(
                 contents=contents,
-                model="gemini-2.0-flash-001"
+                model="gemini-2.0-flash-001",
+                count_tokens=True
             )
+            
+            # Update token usage statistics
+            self.token_usage['transcription']['prompt'] += token_count.prompt_tokens
+            self.token_usage['transcription']['completion'] += token_count.completion_tokens
+            self.token_usage['transcription']['total'] += token_count.total_tokens
+            self.token_usage['transcription']['chunks'] += 1
+            
+            # Update total token usage
+            self.token_usage['total']['prompt'] += token_count.prompt_tokens
+            self.token_usage['total']['completion'] += token_count.completion_tokens
+            self.token_usage['total']['total'] += token_count.total_tokens
             
             # Handle the response which could be a string or an object with 'text' attribute
             response_text = response if isinstance(response, str) else response.text if hasattr(response, 'text') else str(response)
@@ -881,7 +967,36 @@ def main():
         print("\nProcess completed successfully!")
         print("Generated files:")
         for file_type, file_path in result_files.items():
-            print(f"- {file_type}: {file_path}")
+            if file_type not in ['token_usage', 'token_usage_file']:
+                print(f"- {file_type}: {file_path}")
+        
+        # Display token usage statistics if available
+        if 'token_usage' in result_files:
+            token_usage = result_files['token_usage']
+            
+            print("\nToken Usage Statistics:")
+            print("------------------------")
+            print(f"Total Tokens: {token_usage['total']['total']:,}")
+            print(f"  - Prompt Tokens: {token_usage['total']['prompt']:,}")
+            print(f"  - Completion Tokens: {token_usage['total']['completion']:,}")
+            
+            print("\nBreakdown by Phase:")
+            for phase in ['transcription', 'gap_analysis', 'timing_optimization']:
+                print(f"  {phase.capitalize()}:")
+                print(f"    - Prompt: {token_usage[phase]['prompt']:,}")
+                print(f"    - Completion: {token_usage[phase]['completion']:,}")
+                print(f"    - Total: {token_usage[phase]['total']:,}")
+                
+                # Show per-chunk or per-gap averages if available
+                if phase == 'transcription' and 'avg_per_chunk' in token_usage[phase]:
+                    avg = token_usage[phase]['avg_per_chunk']
+                    print(f"    - Average per chunk: {avg['total']:.2f} tokens ({token_usage[phase]['chunks']} chunks)")
+                    
+                if phase == 'gap_analysis' and 'avg_per_gap' in token_usage[phase]:
+                    avg = token_usage[phase]['avg_per_gap']
+                    print(f"    - Average per gap: {avg['total']:.2f} tokens ({token_usage[phase]['gaps']} gaps)")
+            
+            print(f"\nTotal API calls: {token_usage['total_api_calls']}")
         
     except Exception as e:
         print(f"Error: {str(e)}")

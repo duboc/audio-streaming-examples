@@ -97,13 +97,15 @@ Detailed technical documentation is available in the docs folder:
 
 ## Usage
 
+### Command Line Interface
+
 Basic usage:
 
 ```bash
 python process_video_with_captions.py "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
-### Options
+#### Options
 
 ```
 -o OUTPUT_DIR   Custom output directory
@@ -113,6 +115,29 @@ python process_video_with_captions.py "https://www.youtube.com/watch?v=VIDEO_ID"
 --skip-captions Skip caption generation (use existing caption file)
 --skip-embedding Skip embedding captions (just generate caption file)
 ```
+
+### Web Interface
+
+The system now includes a web interface that allows you to:
+- Paste YouTube URLs
+- Upload local video files
+- View processed videos with captions in the browser
+
+To run the web interface:
+
+```bash
+python app.py
+```
+
+Then open your browser and navigate to: `http://localhost:5000`
+
+#### Web Interface Features
+
+- **YouTube Processing**: Simply paste a YouTube URL and click "Process Video"
+- **File Upload**: Upload videos up to 500MB (MP4, MOV, AVI, MKV formats)
+- **Real-time Status Updates**: Monitor processing status in real-time
+- **Integrated Video Player**: Watch processed videos with captions directly in your browser
+- **Caption Format Selection**: Choose between SRT and WebVTT caption formats
 
 ## Key Features
 

@@ -4,3 +4,7 @@ yt-dlp>=2023.10.13
 moviepy>=1.0.3
 pydub>=0.25.1
 tenacity>=8.2.3
+flask>=2.0.0
+flask-wtf>=1.0.0
+werkzeug>=2.0.0
+python-dotenv>=0.20.0

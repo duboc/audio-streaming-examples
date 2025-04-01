@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Results - Caption Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="text-center my-4">
+            <h1>Video Caption Generator</h1>
+            <p class="lead">Results</p>
+        </header>
+
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h2 class="card-title mb-0">
+                                {% if job.source_type == 'youtube' %}
+                                    YouTube Video
+                                {% else %}
+                                    Uploaded Video
+                                {% endif %}
+                            </h2>
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-primary">Process Another Video</a>
+                        </div>
+                        
+                        <!-- Job Status Display -->
+                        <div id="job-status" data-job-id="{{ job.id }}">
+                            <div id="status-queued" class="alert alert-info" {% if job.status != 'queued' %}style="display: none;"{% endif %}>
+                                <div class="d-flex align-items-center">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    <span>Video is queued for processing...</span>
+                                </div>
+                            </div>
+                            
+                            <div id="status-processing" class="alert alert-primary" {% if job.status != 'processing' %}style="display: none;"{% endif %}>
+                                <div class="d-flex align-items-center">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    <span>Processing video. This may take several minutes depending on the video length...</span>
+                                </div>
+                            </div>
+                            
+                            <div id="status-completed" class="alert alert-success" {% if job.status != 'completed' %}style="display: none;"{% endif %}>
+                                <span>Processing complete! Your video with captions is ready.</span>
+                            </div>
+                            
+                            <div id="status-failed" class="alert alert-danger" {% if job.status != 'failed' %}style="display: none;"{% endif %}>
+                                <span>Processing failed: {{ job.error }}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Video Player (only shows when processing is complete) -->
+                        <div id="video-container" class="mt-4" {% if job.status != 'completed' %}style="display: none;"{% endif %}>
+                            <div class="ratio ratio-16x9">
+                                <video id="video-player" controls crossorigin="anonymous">
+                                    <source src="{{ url_for('video', job_id=job.id) }}" type="video/mp4">
+                                    {% if job.status == 'completed' %}
+                                        <track 
+                                            src="{{ url_for('captions', job_id=job.id) }}" 
+                                            kind="subtitles" 
+                                            srclang="en" 
+                                            label="English"
+                                            {% if job.format == 'vtt' %}default{% endif %}>
+                                    {% endif %}
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                            
+                            <div class="mt-2 text-center">
+                                <button id="toggle-captions" class="btn btn-sm btn-outline-primary">
+                                    Toggle Captions
+                                </button>
+                            </div>
+                            
+                            <div class="mt-3 d-flex justify-content-between">
+                                <div>
+                                    <p><strong>Caption Format:</strong> {{ job.format.upper() }}</p>
+                                </div>
+                                <div>
+                                    <a href="{{ url_for('clear_job', job_id=job.id) }}" class="btn btn-sm btn-outline-secondary">Clear This Job</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 card">
+                    <div class="card-body">
+                        <h3>About Your Captions</h3>
+                        <p>The captions for this video include:</p>
+                        <ul>
+                            <li>Speech transcription with accurate timing</li>
+                            <li>Music indicators (e.g., <code>[♪ Upbeat jazz music ♪]</code>)</li>
+                            <li>Sound effect labels (e.g., <code>[Sound: door slamming]</code>)</li>
+                            <li>Meaningful silence indicators</li>
+                        </ul>
+                        <p>Captions are embedded as "soft subtitles" that can be toggled on/off in your video player.</p>
+                    </div>
+                </div>
+                
+                {% if job.token_usage %}
+                <div class="mt-4 card">
+                    <div class="card-body">
+                        <h3>Token Usage Statistics</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Total Tokens</h5>
+                                <ul class="list-group mb-3">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Prompt Tokens
+                                        <span class="badge bg-primary rounded-pill">{{ job.token_usage.total.prompt|int }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Completion Tokens
+                                        <span class="badge bg-success rounded-pill">{{ job.token_usage.total.completion|int }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Total Tokens
+                                        <span class="badge bg-dark rounded-pill">{{ job.token_usage.total.total|int }}</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        Total API Calls
+                                        <span class="badge bg-info rounded-pill">{{ job.token_usage.total_api_calls }}</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h5>Breakdown by Phase</h5>
+                                <div class="accordion" id="tokenAccordion">
+                                    <!-- Transcription -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTranscription">
+                                                Transcription ({{ job.token_usage.transcription.chunks }} chunks)
+                                            </button>
+                                        </h2>
+                                        <div id="collapseTranscription" class="accordion-collapse collapse" data-bs-parent="#tokenAccordion">
+                                            <div class="accordion-body">
+                                                <ul class="list-group">
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Total
+                                                        <span class="badge bg-dark">{{ job.token_usage.transcription.total|int }}</span>
+                                                    </li>
+                                                    {% if job.token_usage.transcription.avg_per_chunk %}
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Average per chunk
+                                                        <span class="badge bg-dark">{{ job.token_usage.transcription.avg_per_chunk.total|round(2) }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Gap Analysis -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGaps">
+                                                Gap Analysis ({{ job.token_usage.gap_analysis.gaps }} gaps)
+                                            </button>
+                                        </h2>
+                                        <div id="collapseGaps" class="accordion-collapse collapse" data-bs-parent="#tokenAccordion">
+                                            <div class="accordion-body">
+                                                <ul class="list-group">
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Total
+                                                        <span class="badge bg-dark">{{ job.token_usage.gap_analysis.total|int }}</span>
+                                                    </li>
+                                                    {% if job.token_usage.gap_analysis.avg_per_gap %}
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Average per gap
+                                                        <span class="badge bg-dark">{{ job.token_usage.gap_analysis.avg_per_gap.total|round(2) }}</span>
+                                                    </li>
+                                                    {% endif %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Timing Optimization -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTiming">
+                                                Timing Optimization
+                                            </button>
+                                        </h2>
+                                        <div id="collapseTiming" class="accordion-collapse collapse" data-bs-parent="#tokenAccordion">
+                                            <div class="accordion-body">
+                                                <ul class="list-group">
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Total
+                                                        <span class="badge bg-dark">{{ job.token_usage.timing_optimization.total|int }}</span>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+    <script>
+        // Job status polling
+        const jobId = document.getElementById('job-status').dataset.jobId;
+        const pollInterval = 5000; // 5 seconds
+        
+        function updateStatus(status) {
+            document.getElementById('status-queued').style.display = status === 'queued' ? 'block' : 'none';
+            document.getElementById('status-processing').style.display = status === 'processing' ? 'block' : 'none';
+            document.getElementById('status-completed').style.display = status === 'completed' ? 'block' : 'none';
+            document.getElementById('status-failed').style.display = status === 'failed' ? 'block' : 'none';
+            
+            if (status === 'completed') {
+                document.getElementById('video-container').style.display = 'block';
+                // Stop polling when complete
+                clearInterval(pollingInterval);
+            }
+        }
+        
+        function checkJobStatus() {
+            fetch(`/job-status/${jobId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status !== 'not_found') {
+                        updateStatus(data.status);
+                        
+                        if (data.status === 'failed') {
+                            document.getElementById('status-failed').textContent = `Processing failed: ${data.error}`;
+                            clearInterval(pollingInterval);
+                        }
+                    }
+                })
+                .catch(error => console.error('Error checking job status:', error));
+        }
+        
+        // Start polling
+        const pollingInterval = setInterval(checkJobStatus, pollInterval);
+        
+        // Check immediately on page load
+        checkJobStatus();
+    </script>
+    
+    <script>
+        // Caption toggling functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const videoPlayer = document.getElementById('video-player');
+            const toggleButton = document.getElementById('toggle-captions');
+            
+            if (videoPlayer && toggleButton) {
+                // Enable captions by default when video loads
+                videoPlayer.addEventListener('loadedmetadata', function() {
+                    if (this.textTracks && this.textTracks.length > 0) {
+                        this.textTracks[0].mode = 'showing';
+                    }
+                });
+                
+                // Toggle captions on button click
+                toggleButton.addEventListener('click', function() {
+                    if (videoPlayer.textTracks && videoPlayer.textTracks.length > 0) {
+                        const track = videoPlayer.textTracks[0];
+                        if (track.mode === 'showing') {
+                            track.mode = 'hidden';
+                            toggleButton.textContent = 'Show Captions';
+                        } else {
+                            track.mode = 'showing';
+                            toggleButton.textContent = 'Hide Captions';
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
