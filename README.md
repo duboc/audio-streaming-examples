@@ -13,67 +13,7 @@ This system uses Google's Gemini multimodal AI models to:
 5. Optimize caption timing for the best viewer experience
 6. Embed captions as soft subtitles in videos
 
-## How It Works
-
-The system processes videos through several stages:
-
-```mermaid
-flowchart TD
-    A[Input Video/YouTube URL] --> B[Extract Audio]
-    B --> C[Split into Chunks]
-    C --> D[Process Each Chunk with Gemini]
-    D --> E[Detect & Fill Gaps]
-    E --> F[Final Timing Optimization]
-    F --> G[Format as SRT/VTT]
-    G --> H[Embed Captions in Video]
-```
-
-### Caption Type Handling
-
-The system identifies and formats different types of audio content:
-
-```mermaid
-flowchart LR
-    A[Audio Analysis] --> B{Content Type}
-    B -->|Speech| C[Standard Caption]
-    B -->|Music| D["♪ Music Description ♪"]
-    B -->|Sound Effect| E["Sound: Description"]
-    B -->|Silence| F["Meaningful Silence"]
-```
-
-### Gap Analysis Process
-
-To ensure no important audio cues are missed:
-
-```mermaid
-flowchart TD
-    A[Start] --> B[Sort Segments by Time]
-    B --> C[Identify Gaps > 1s]
-    C --> D{For Each Gap}
-    D --> E[Export Gap Audio]
-    E --> F[Send to Gemini for Analysis]
-    F --> G[Classify as Music/Sound/Silence]
-    G --> H[Create Gap Segment]
-    H --> I[Insert into Timeline]
-    D --> J[End]
-```
-
-### Timing Optimization
-
-The final stage ensures optimal caption timing:
-
-```mermaid
-flowchart TD
-    A[All Caption Segments] --> B[Sort by Start Time]
-    B --> C[Send to Gemini for Timing Analysis]
-    C --> D[Apply Natural Speech Patterns]
-    D --> E[Adjust Duration for Non-Speech Elements]
-    E --> F[Ensure Readability Gaps]
-    F --> G[Combine Related Short Segments]
-    G --> H[Final Optimized Captions]
-```
-
-### Sequence Diagram
+## System Architecture
 
 The following sequence diagram illustrates the interactions between different components of the system:
 
@@ -124,6 +64,16 @@ sequenceDiagram
     
     VideoProcessor-->>User: Return result files
 ```
+
+## Documentation
+
+Detailed technical documentation is available in the docs folder:
+
+- [Process Flow](docs/process_flow.md) - The step-by-step process of audio transcription
+- [Content Type Handling](docs/content_type_handling.md) - How different audio elements are identified and formatted
+- [Gap Analysis](docs/gap_analysis.md) - How gaps between speech segments are analyzed
+- [Timing Optimization](docs/timing_optimization.md) - How caption timing is optimized for viewing
+- [Sequence Diagram](docs/sequence_diagram.md) - Detailed explanation of component interactions
 
 ## Installation
 
@@ -179,37 +129,6 @@ python process_video_with_captions.py "https://www.youtube.com/watch?v=VIDEO_ID"
 - **Timing Optimization**: Adjusts caption timing for optimal viewer experience
 - **Format Support**: Generates captions in SRT and WebVTT formats
 - **Soft Subtitle Embedding**: Embeds captions that can be toggled on/off
-
-### WebVTT Enhanced Styling
-
-The system utilizes WebVTT's styling capabilities:
-- Italics for music (`<i>[♪ Upbeat jazz music ♪]</i>`)
-- Bold for sound effects (`<b>[Sound: door slamming]</b>`)
-- Standard formatting for silence labels
-
-## Roadmap
-
-### Short-term (1-3 months)
-
-- [ ] Scene change detection for better caption timing
-- [ ] Enhanced music genre identification
-- [ ] Improved handling of overlapping speech and sound effects
-- [ ] Support for additional output formats (ASS, TTML)
-
-### Medium-term (3-6 months)
-
-- [ ] Speaker identification and labeling
-- [ ] Multi-language support and translation
-- [ ] Customizable styling themes for different content types
-- [ ] Batch processing for multiple videos
-
-### Long-term (6+ months)
-
-- [ ] Real-time processing for live streams
-- [ ] Integration with popular video editing platforms
-- [ ] Sentiment analysis for enhanced caption styling
-- [ ] Accessibility optimizations (reading speed adjustment, simplified language options)
-- [ ] Visual context awareness for better caption placement
 
 ## Contributing
 
